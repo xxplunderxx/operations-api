@@ -41,7 +41,7 @@ Or from `operations-api`, run `docker compose up --build`.
 
 ## Data and alerts
 
-Only parsed telemetry rows referencing a known farm and turbine contribute to summaries; farms without telemetry are returned by the farm route but absent from dashboard summaries. Raw measurement and receipt timestamps are retained. Rows with parsing errors are logged and skipped rather than terminating startup. The CSV location defaults to `Data` beneath the application content root and can be changed with `CsvData__DataDirectory`.
+Only parsed telemetry rows referencing a known turbine and that turbine's assigned farm contribute to summaries; farms without telemetry are returned by the farm route but absent from dashboard summaries. Raw measurement and receipt timestamps are retained. Rows with parsing errors are logged and skipped rather than terminating startup. The CSV location defaults to `Data` beneath the application content root and can be changed with `CsvData__DataDirectory`.
 
 Thresholds and cadence are centralized in `Operations.Domain/AlertRules.cs`: critical alerts are zero power at wind speeds at least 10 m/s and gearbox temperature above 100 °C. Warning data-quality alerts identify adjacent measurements more than five minutes apart, and arrival more than ten minutes after measurement. Alerts sort by measurement timestamp, then turbine ID, then category; series sort by timestamp then receipt time. These are presentation alerts, not a claim that other unusual-but-valid readings are invalid.
 

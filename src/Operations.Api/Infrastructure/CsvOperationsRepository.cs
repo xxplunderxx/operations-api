@@ -15,18 +15,23 @@ public sealed partial class CsvOperationsRepository : IOperationsRepository
         var directory = Path.GetFullPath(Path.Combine(environment.ContentRootPath, options.Value.DataDirectory));
         EnsureRequiredFiles(directory);
 
-        var farms = Read(directory, "farms.csv", ParseFarm, logger);
-        var turbines = Read(directory, "turbines.csv", ParseTurbine, logger);
-        var knownTurbines = turbines.Select(turbine => turbine.Id).ToHashSet(StringComparer.Ordinal);
+        var farms = Read(directory, "farms.csv", ParseFarm, logger)
+            .DistinctBy(farm => farm.Id, StringComparer.Ordinal)
+            .ToArray();
         var knownFarms = farms.Select(farm => farm.Id).ToHashSet(StringComparer.Ordinal);
+        var turbines = Read(directory, "turbines.csv", ParseTurbine, logger)
+            .Where(turbine => knownFarms.Contains(turbine.FarmId))
+            .DistinctBy(turbine => turbine.Id, StringComparer.Ordinal)
+            .ToArray();
+        var turbineFarmIds = turbines.ToDictionary(turbine => turbine.Id, turbine => turbine.FarmId, StringComparer.Ordinal);
         var telemetry = Read(directory, "telemetry.csv", ParseTelemetry, logger)
-            .Where(row => knownTurbines.Contains(row.TurbineId) && knownFarms.Contains(row.FarmId))
+            .Where(row => turbineFarmIds.TryGetValue(row.TurbineId, out var farmId) && row.FarmId == farmId)
             .OrderBy(row => row.Timestamp)
             .ThenBy(row => row.TurbineId, StringComparer.Ordinal)
             .ToArray();
 
         _data = new OperationsData(farms, turbines, telemetry);
-        LogLoaded(logger, farms.Count, turbines.Count, telemetry.Length, directory);
+        LogLoaded(logger, farms.Length, turbines.Length, telemetry.Length, directory);
     }
 
     public OperationsData GetData() => _data;

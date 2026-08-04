@@ -50,6 +50,26 @@ public sealed class CsvOperationsRepositoryTests
         }
     }
 
+    [Fact]
+    public void Telemetry_with_a_farm_that_does_not_match_its_turbine_is_skipped()
+    {
+        var directory = Directory.CreateTempSubdirectory("operations-api-");
+        try
+        {
+            File.WriteAllText(Path.Combine(directory.FullName, "farms.csv"), "id,name,latitude,longitude\nFARM01,Farm 1,0,0\nFARM02,Farm 2,0,0\n");
+            File.WriteAllText(Path.Combine(directory.FullName, "turbines.csv"), "id,farmId,farmName,latitude,longitude\nTURB001,FARM01,Farm 1,0,0\n");
+            File.WriteAllText(Path.Combine(directory.FullName, "telemetry.csv"), "turbineId,farmId,timestamp,receivedAt,powerOutputKw,windSpeedMs,rotorRpm,bladePitchDeg,gearboxTempC\nTURB001,FARM02,2026-01-01T00:00:00Z,2026-01-01T00:00:00Z,1,2,3,4,5\n");
+
+            var data = CreateRepository(directory.FullName).GetData();
+
+            Assert.Empty(data.Telemetry);
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
     private static CsvOperationsRepository CreateRepository(string directory) => new(
         new TestHostEnvironment(directory),
         Options.Create(new CsvDataOptions { DataDirectory = "." }),

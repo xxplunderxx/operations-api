@@ -71,6 +71,17 @@ public sealed class OperationsQueriesTests
         Assert.Null(queries.GetTurbine("missing"));
     }
 
+    [Fact]
+    public void Dashboard_with_no_telemetry_returns_zero_fleet_metrics()
+    {
+        var dashboard = CreateQueries([]).GetDashboard();
+
+        Assert.Empty(dashboard.Farms);
+        Assert.Equal(0, dashboard.FleetMetrics.AveragePowerKw);
+        Assert.Equal(0, dashboard.FleetMetrics.AverageWindMs);
+        Assert.Equal(0, dashboard.FleetMetrics.CriticalAlertCount);
+    }
+
     private static InMemoryRepository CreateRepository(IReadOnlyList<Telemetry> telemetry) => new(new OperationsData(
         [new Farm("FARM01", "Farm", 0, 0)],
         [new Turbine("TURB001", "FARM01", "Farm", 0, 0)],

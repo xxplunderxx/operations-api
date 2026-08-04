@@ -21,10 +21,13 @@ public sealed class OperationsQueries(IOperationsRepository repository, AlertRul
             })
             .ToArray();
 
+        var averagePowerKw = data.Telemetry.Count == 0 ? 0 : data.Telemetry.Average(telemetry => telemetry.PowerOutputKw);
+        var averageWindMs = data.Telemetry.Count == 0 ? 0 : data.Telemetry.Average(telemetry => telemetry.WindSpeedMs);
+
         return new Dashboard(
             new FleetMetrics(
-                data.Telemetry.Average(telemetry => telemetry.PowerOutputKw),
-                data.Telemetry.Average(telemetry => telemetry.WindSpeedMs),
+                averagePowerKw,
+                averageWindMs,
                 alerts.Count(alert => alert.Severity == AlertSeverity.Critical)),
             farms);
     }
