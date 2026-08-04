@@ -19,6 +19,11 @@ builder.Services.AddOptions<AlertRuleOptions>()
     .Bind(builder.Configuration.GetSection(AlertRuleOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
+builder.Services.AddOptions<PaginationOptions>()
+    .Bind(builder.Configuration.GetSection(PaginationOptions.SectionName))
+    .ValidateDataAnnotations()
+    .Validate(options => options.IsValidDefault, "DefaultPageSize must not exceed MaxPageSize.")
+    .ValidateOnStart();
 builder.Services.AddSingleton<IOperationsRepository, CsvOperationsRepository>();
 builder.Services.AddSingleton(sp => new AlertRules(sp.GetRequiredService<IOptions<AlertRuleOptions>>().Value.ToSettings()));
 builder.Services.AddSingleton<OperationsQueries>();

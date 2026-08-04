@@ -69,6 +69,33 @@ public sealed class OperationsQueries(IOperationsRepository repository, AlertRul
             new TelemetrySeries("m/s", rows.Select(row => new TelemetryPoint(row.Timestamp, row.WindSpeedMs)).ToArray()));
     }
 
+    public TurbineTelemetryPage? GetTurbineTelemetry(string turbineId, TurbineMetric metric, int start, int pageSize)
+    {
+        var data = repository.GetData();
+        var turbine = data.Turbines.FirstOrDefault(candidate => candidate.Id == turbineId);
+        if (turbine is null)
+        {
+            return null;
+        }
+
+        var rows = data.Telemetry.Where(telemetry => telemetry.TurbineId == turbine.Id)
+            .OrderBy(telemetry => telemetry.Timestamp)
+            .ThenBy(telemetry => telemetry.ReceivedAt)
+            .ToArray();
+        var page = rows.Skip(start).Take(pageSize).ToArray();
+        return new TurbineTelemetryPage(
+            turbine.Id,
+            turbine.FarmId,
+            turbine.FarmName,
+            rows.Length == 0 ? null : rows.Average(row => row.PowerOutputKw),
+            rows.Length == 0 ? null : rows.Average(row => row.WindSpeedMs),
+            rows.Length == 0 ? null : CountOperationalCritical(rows),
+            metric,
+            page.Select(row => new TelemetryPoint(row.Timestamp, metric.Value(row))).ToArray(),
+            start + page.Length < rows.Length,
+            start + page.Length);
+    }
+
     public IReadOnlyList<Alert> GetAlerts() => GetAlerts(repository.GetData());
 
     private Alert[] GetAlerts(OperationsData data)
@@ -133,5 +160,31 @@ public sealed record FarmTurbine(string TurbineId);
 public sealed record TurbineDetails(string TurbineId, string FarmId, string FarmName, double? AveragePowerKw, double? AverageWindMs, int? CriticalAlertCount, TelemetrySeries PowerOutput, TelemetrySeries WindSpeed);
 public sealed record TelemetrySeries(string Unit, IReadOnlyList<TelemetryPoint> Points);
 public sealed record TelemetryPoint(DateTimeOffset Timestamp, double Value);
+public sealed record TurbineTelemetryPage(string TurbineId, string FarmId, string FarmName, double? AveragePowerKw, double? AverageWindMs, int? CriticalAlertCount, TurbineMetric Metric, IReadOnlyList<TelemetryPoint> Points, bool HasMore, int NextStart);
+public enum TurbineMetric
+{
+    powerOutput,
+    windSpeed,
+    gearBoxTemp
+}
+
+public static class TurbineMetricExtensions
+{
+    public static double Value(this TurbineMetric metric, Telemetry row) => metric switch
+    {
+        TurbineMetric.powerOutput => row.PowerOutputKw,
+        TurbineMetric.windSpeed => row.WindSpeedMs,
+        TurbineMetric.gearBoxTemp => row.GearboxTempC,
+        _ => throw new ArgumentOutOfRangeException(nameof(metric))
+    };
+
+    public static string Unit(this TurbineMetric metric) => metric switch
+    {
+        TurbineMetric.powerOutput => "kW",
+        TurbineMetric.windSpeed => "m/s",
+        TurbineMetric.gearBoxTemp => "°C",
+        _ => throw new ArgumentOutOfRangeException(nameof(metric))
+    };
+}
 public sealed record Alert(string Category, AlertSeverity Severity, string FarmId, string FarmName, string TurbineId, DateTimeOffset Timestamp, string Title, string Explanation);
 public enum AlertSeverity { Warning, Critical }

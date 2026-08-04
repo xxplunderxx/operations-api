@@ -17,7 +17,7 @@ dotnet run --project src/Operations.Api --urls http://localhost:8080
 curl http://localhost:8080/health
 curl http://localhost:8080/api/operations/dashboard
 curl http://localhost:8080/api/operations/farms/FARM01
-curl http://localhost:8080/api/operations/turbines/TURB001
+curl 'http://localhost:8080/api/operations/turbines/TURB001?metric=powerOutput&page%5Bsize%5D=100'
 curl http://localhost:8080/api/operations/alerts
 ```
 
@@ -44,5 +44,7 @@ Or from `operations-api`, run `docker compose up --build`.
 Only parsed telemetry rows referencing a known farm and turbine contribute to summaries; farms without telemetry are returned by the farm route but absent from dashboard summaries. Raw measurement and receipt timestamps are retained. Rows with parsing errors are logged and skipped rather than terminating startup. The CSV location defaults to `Data` beneath the application content root and can be changed with `CsvData__DataDirectory`.
 
 Thresholds and cadence are centralized in `Operations.Domain/AlertRules.cs`: critical alerts are zero power at wind speeds at least 10 m/s and gearbox temperature above 100 °C. Warning data-quality alerts identify adjacent measurements more than five minutes apart, and arrival more than ten minutes after measurement. Alerts sort by measurement timestamp, then turbine ID, then category; series sort by timestamp then receipt time. These are presentation alerts, not a claim that other unusual-but-valid readings are invalid.
+
+The turbine endpoint requires `metric=powerOutput`, `metric=windSpeed`, or `metric=gearBoxTemp`. It returns a JSON:API document whose `data` contains telemetry resources, with `links.next` carrying an opaque `page[after]` cursor for the next page. `page[size]` is optional, defaults to 100, and is capped at 500 by `Pagination:MaxPageSize`.
 
 For production scale, replace the startup store with durable, indexed time-series storage, ingest asynchronously, add authenticated tenant-aware APIs and observability, and evaluate alert state incrementally rather than recalculating it per request.

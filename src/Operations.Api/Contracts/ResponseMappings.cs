@@ -14,5 +14,10 @@ public static class ResponseMappings
 
     public static AlertResponse ToResponse(this Alert value) => new(value.Category, value.Severity.ToString().ToLowerInvariant(), value.FarmId, value.FarmName, value.TurbineId, null, value.Timestamp, value.Title, value.Explanation);
 
+    public static JsonApiDocumentResponse ToResponse(this TurbineTelemetryPage value, string self, string? next, int pageSize) => new(
+        value.Points.Select((point, index) => new JsonApiResourceResponse("telemetry", $"{value.TurbineId}:{value.NextStart - value.Points.Count + index}:{point.Timestamp:O}", new TelemetryPointResponse(point.Timestamp, point.Value))).ToArray(),
+        new JsonApiLinks(self, next),
+        new JsonApiPageMeta(value.Metric.ToString(), value.Metric.Unit(), pageSize, value.HasMore, new TurbinePageMeta(value.TurbineId, value.FarmId, value.FarmName, value.AveragePowerKw, value.AverageWindMs, value.CriticalAlertCount)));
+
     private static TelemetrySeriesResponse ToResponse(this TelemetrySeries value) => new(value.Unit, value.Points.Select(point => new TelemetryPointResponse(point.Timestamp, point.Value)).ToArray());
 }

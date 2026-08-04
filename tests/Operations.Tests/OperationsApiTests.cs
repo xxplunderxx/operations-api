@@ -26,14 +26,37 @@ public sealed class OperationsApiTests(OperationsApiFactory factory) : IClassFix
     public async Task Farm_and_turbine_routes_return_contracts()
     {
         var farm = await _client.GetFromJsonAsync<FarmResponse>("/api/operations/farms/FARM01");
-        var turbine = await _client.GetFromJsonAsync<TurbineResponse>("/api/operations/turbines/TURB001");
+        var turbine = await _client.GetFromJsonAsync<JsonApiDocumentResponse>("/api/operations/turbines/TURB001?metric=powerOutput&page%5Bsize%5D=100");
 
         Assert.NotNull(farm);
         Assert.Equal(["TURB001"], farm.Turbines.Select(value => value.TurbineId));
         Assert.NotNull(turbine);
-        Assert.Equal("kW", turbine.PowerOutput.Unit);
-        Assert.Equal(562, turbine.PowerOutput.Points.Count);
-        Assert.True(turbine.PowerOutput.Points.Zip(turbine.PowerOutput.Points.Skip(1)).All(pair => pair.First.Timestamp <= pair.Second.Timestamp));
+        Assert.Equal(100, turbine.Data.Count);
+        Assert.Equal("powerOutput", turbine.Meta.Metric);
+        Assert.Equal("kW", turbine.Meta.Unit);
+        Assert.NotNull(turbine.Links.Next);
+
+        var next = await _client.GetFromJsonAsync<JsonApiDocumentResponse>(turbine.Links.Next);
+        Assert.NotNull(next);
+        Assert.Equal(100, next.Data.Count);
+        Assert.True(turbine.Data.Zip(next.Data).All(pair => pair.First.Attributes.Timestamp < pair.Second.Attributes.Timestamp));
+    }
+
+    [Fact]
+    public async Task Turbine_requires_a_supported_metric_and_caps_the_page_size()
+    {
+        var missingMetric = await _client.GetAsync("/api/operations/turbines/TURB001");
+        var invalidMetric = await _client.GetAsync("/api/operations/turbines/TURB001?metric=rotorRpm");
+        var defaultSize = await _client.GetFromJsonAsync<JsonApiDocumentResponse>("/api/operations/turbines/TURB001?metric=gearBoxTemp");
+        var oversized = await _client.GetFromJsonAsync<JsonApiDocumentResponse>("/api/operations/turbines/TURB001?metric=gearBoxTemp&page%5Bsize%5D=1000");
+
+        Assert.Equal(HttpStatusCode.BadRequest, missingMetric.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, invalidMetric.StatusCode);
+        Assert.NotNull(defaultSize);
+        Assert.Equal(100, defaultSize.Data.Count);
+        Assert.NotNull(oversized);
+        Assert.Equal(500, oversized.Data.Count);
+        Assert.Equal("°C", oversized.Meta.Unit);
     }
 
     [Fact]
@@ -51,7 +74,7 @@ public sealed class OperationsApiTests(OperationsApiFactory factory) : IClassFix
 
     [Theory]
     [InlineData("/api/operations/farms/NOPE", "farm_not_found")]
-    [InlineData("/api/operations/turbines/NOPE", "turbine_not_found")]
+    [InlineData("/api/operations/turbines/NOPE?metric=powerOutput", "turbine_not_found")]
     public async Task Missing_resources_return_problem_details(string path, string code)
     {
         var response = await _client.GetAsync(path);
