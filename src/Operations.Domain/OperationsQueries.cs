@@ -1,6 +1,6 @@
 namespace Operations.Domain;
 
-public sealed class OperationsQueries(IOperationsRepository repository)
+public sealed class OperationsQueries(IOperationsRepository repository, AlertRules alertRules)
 {
     public Dashboard GetDashboard()
     {
@@ -71,7 +71,7 @@ public sealed class OperationsQueries(IOperationsRepository repository)
 
     public IReadOnlyList<Alert> GetAlerts() => GetAlerts(repository.GetData());
 
-    private static Alert[] GetAlerts(OperationsData data)
+    private Alert[] GetAlerts(OperationsData data)
     {
         var alerts = new List<Alert>();
         foreach (var group in data.Telemetry.GroupBy(telemetry => telemetry.TurbineId))
@@ -80,12 +80,12 @@ public sealed class OperationsQueries(IOperationsRepository repository)
             var ordered = group.OrderBy(row => row.Timestamp).ThenBy(row => row.ReceivedAt).ToArray();
             foreach (var row in ordered)
             {
-                foreach (var rule in AlertRules.Operational(row))
+                foreach (var rule in alertRules.Operational(row))
                 {
                     alerts.Add(CreateAlert(rule.Category, AlertSeverity.Critical, turbine, row.Timestamp, rule.Title, rule.Explanation));
                 }
 
-                if (row.ReceivedAt - row.Timestamp > AlertRules.LateArrivalThreshold)
+                if (row.ReceivedAt - row.Timestamp > alertRules.Settings.LateArrivalThreshold)
                 {
                     alerts.Add(CreateAlert(
                         "late_arrival",
@@ -93,14 +93,14 @@ public sealed class OperationsQueries(IOperationsRepository repository)
                         turbine,
                         row.Timestamp,
                         "Late telemetry arrival",
-                        $"Telemetry arrived {(row.ReceivedAt - row.Timestamp).TotalMinutes:0} minutes after measurement (threshold {AlertRules.LateArrivalThreshold.TotalMinutes:0} minutes)."));
+                        $"Telemetry arrived {(row.ReceivedAt - row.Timestamp).TotalMinutes:0} minutes after measurement (threshold {alertRules.Settings.LateArrivalThreshold.TotalMinutes:0} minutes)."));
                 }
             }
 
             for (var index = 1; index < ordered.Length; index++)
             {
                 var gap = ordered[index].Timestamp - ordered[index - 1].Timestamp;
-                if (gap > AlertRules.ExpectedCadence)
+                if (gap > alertRules.Settings.ExpectedCadence)
                 {
                     alerts.Add(CreateAlert(
                         "missing_interval",
@@ -108,7 +108,7 @@ public sealed class OperationsQueries(IOperationsRepository repository)
                         turbine,
                         ordered[index].Timestamp,
                         "Missing reporting interval",
-                        $"A {gap.TotalMinutes:0}-minute gap followed the measurement at {ordered[index - 1].Timestamp:O}; expected cadence is {AlertRules.ExpectedCadence.TotalMinutes:0} minutes."));
+                        $"A {gap.TotalMinutes:0}-minute gap followed the measurement at {ordered[index - 1].Timestamp:O}; expected cadence is {alertRules.Settings.ExpectedCadence.TotalMinutes:0} minutes."));
                 }
             }
         }
@@ -122,7 +122,7 @@ public sealed class OperationsQueries(IOperationsRepository repository)
     private static Alert CreateAlert(string category, AlertSeverity severity, Turbine turbine, DateTimeOffset timestamp, string title, string explanation) =>
         new(category, severity, turbine.FarmId, turbine.FarmName, turbine.Id, timestamp, title, explanation);
 
-    private static int CountOperationalCritical(IEnumerable<Telemetry> rows) => rows.Sum(row => AlertRules.Operational(row).Count());
+    private int CountOperationalCritical(IEnumerable<Telemetry> rows) => rows.Sum(row => alertRules.Operational(row).Count());
 }
 
 public sealed record Dashboard(FleetMetrics FleetMetrics, IReadOnlyList<FarmDashboard> Farms);

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.Extensions.Options;
 using Operations.Api.Endpoints;
 using Operations.Api.Infrastructure;
 using Operations.Api.Options;
@@ -14,7 +15,12 @@ builder.Services.AddOptions<CsvDataOptions>()
     .Bind(builder.Configuration.GetSection(CsvDataOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
+builder.Services.AddOptions<AlertRuleOptions>()
+    .Bind(builder.Configuration.GetSection(AlertRuleOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 builder.Services.AddSingleton<IOperationsRepository, CsvOperationsRepository>();
+builder.Services.AddSingleton(sp => new AlertRules(sp.GetRequiredService<IOptions<AlertRuleOptions>>().Value.ToSettings()));
 builder.Services.AddSingleton<OperationsQueries>();
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
