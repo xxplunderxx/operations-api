@@ -11,14 +11,14 @@ public sealed class OperationsApiTests(OperationsApiFactory factory) : IClassFix
     private readonly HttpClient _client = factory.CreateClient();
 
     [Fact]
-    public async Task Dashboard_has_seed_aggregates_and_only_reporting_farms()
+    public async Task Dashboard_has_aggregates_for_all_reporting_farms()
     {
         var dashboard = await _client.GetFromJsonAsync<DashboardResponse>("/api/operations/dashboard");
 
         Assert.NotNull(dashboard);
-        Assert.Equal(2, dashboard.Farms.Count);
-        Assert.Equal(2737.569340463459, dashboard.FleetMetrics.AveragePowerKw, 6);
-        Assert.Equal(10.914260249554, dashboard.FleetMetrics.AverageWindMs, 6);
+        Assert.Equal(10, dashboard.Farms.Count);
+        Assert.Equal(2555.883452338451, dashboard.FleetMetrics.AveragePowerKw, 6);
+        Assert.Equal(9.216744019993, dashboard.FleetMetrics.AverageWindMs, 6);
         Assert.Equal(6, dashboard.FleetMetrics.CriticalAlertCount);
     }
 
@@ -44,8 +44,8 @@ public sealed class OperationsApiTests(OperationsApiFactory factory) : IClassFix
         Assert.NotNull(alerts);
         Assert.Equal(3, alerts.Count(alert => alert.Category == "zero_power_high_wind"));
         Assert.Equal(3, alerts.Count(alert => alert.Category == "high_gearbox_temperature"));
-        Assert.Equal(30, alerts.Count(alert => alert.Category == "missing_interval"));
-        Assert.Equal(312, alerts.Count(alert => alert.Category == "late_arrival"));
+        Assert.Equal(158, alerts.Count(alert => alert.Category == "missing_interval"));
+        Assert.Equal(396, alerts.Count(alert => alert.Category == "late_arrival"));
         Assert.True(alerts.Zip(alerts.Skip(1)).All(pair => pair.First.Timestamp <= pair.Second.Timestamp));
     }
 
