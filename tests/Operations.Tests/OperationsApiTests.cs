@@ -19,7 +19,9 @@ public sealed class OperationsApiTests(OperationsApiFactory factory) : IClassFix
         Assert.Equal(10, dashboard.Farms.Count);
         Assert.Equal(2555.883452338451, dashboard.FleetMetrics.AveragePowerKw, 6);
         Assert.Equal(9.216744019993, dashboard.FleetMetrics.AverageWindMs, 6);
+        Assert.Equal(82.203641556587, dashboard.FleetMetrics.AverageGearboxTempC, 6);
         Assert.Equal(6, dashboard.FleetMetrics.CriticalAlertCount);
+        Assert.All(dashboard.Farms, farm => Assert.True(farm.AverageGearboxTempC > 0));
     }
 
     [Fact]
@@ -34,6 +36,7 @@ public sealed class OperationsApiTests(OperationsApiFactory factory) : IClassFix
         Assert.Equal(100, turbine.Data.Count);
         Assert.Equal("powerOutput", turbine.Meta.Metric);
         Assert.Equal("kW", turbine.Meta.Unit);
+        Assert.Equal(83.400533807829, turbine.Meta.Turbine.AverageGearboxTempC!.Value, 6);
         Assert.NotNull(turbine.Links.Next);
 
         var next = await _client.GetFromJsonAsync<JsonApiDocumentResponse>(turbine.Links.Next);

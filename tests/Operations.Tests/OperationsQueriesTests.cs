@@ -79,7 +79,24 @@ public sealed class OperationsQueriesTests
         Assert.Empty(dashboard.Farms);
         Assert.Equal(0, dashboard.FleetMetrics.AveragePowerKw);
         Assert.Equal(0, dashboard.FleetMetrics.AverageWindMs);
+        Assert.Equal(0, dashboard.FleetMetrics.AverageGearboxTempC);
         Assert.Equal(0, dashboard.FleetMetrics.CriticalAlertCount);
+    }
+
+    [Fact]
+    public void Dashboard_calculates_gearbox_temperature_averages_for_fleet_and_farms()
+    {
+        var timestamp = DateTimeOffset.UnixEpoch;
+        var telemetry = new[]
+        {
+            Row(timestamp, timestamp, 1, 2, 60),
+            Row(timestamp + TimeSpan.FromMinutes(5), timestamp + TimeSpan.FromMinutes(5), 3, 4, 80)
+        };
+
+        var dashboard = CreateQueries(telemetry).GetDashboard();
+
+        Assert.Equal(70, dashboard.FleetMetrics.AverageGearboxTempC);
+        Assert.Equal(70, dashboard.Farms.Single().AverageGearboxTempC);
     }
 
     private static InMemoryRepository CreateRepository(IReadOnlyList<Telemetry> telemetry) => new(new OperationsData(

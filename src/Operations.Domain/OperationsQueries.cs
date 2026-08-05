@@ -17,17 +17,20 @@ public sealed class OperationsQueries(IOperationsRepository repository, AlertRul
                     farm.Name,
                     group.Average(telemetry => telemetry.PowerOutputKw),
                     group.Average(telemetry => telemetry.WindSpeedMs),
+                    group.Average(telemetry => telemetry.GearboxTempC),
                     CountOperationalCritical(group));
             })
             .ToArray();
 
         var averagePowerKw = data.Telemetry.Count == 0 ? 0 : data.Telemetry.Average(telemetry => telemetry.PowerOutputKw);
         var averageWindMs = data.Telemetry.Count == 0 ? 0 : data.Telemetry.Average(telemetry => telemetry.WindSpeedMs);
+        var averageGearboxTempC = data.Telemetry.Count == 0 ? 0 : data.Telemetry.Average(telemetry => telemetry.GearboxTempC);
 
         return new Dashboard(
             new FleetMetrics(
                 averagePowerKw,
                 averageWindMs,
+                averageGearboxTempC,
                 alerts.Count(alert => alert.Severity == AlertSeverity.Critical)),
             farms);
     }
@@ -67,6 +70,7 @@ public sealed class OperationsQueries(IOperationsRepository repository, AlertRul
             turbine.FarmName,
             rows.Length == 0 ? null : rows.Average(telemetry => telemetry.PowerOutputKw),
             rows.Length == 0 ? null : rows.Average(telemetry => telemetry.WindSpeedMs),
+            rows.Length == 0 ? null : rows.Average(telemetry => telemetry.GearboxTempC),
             rows.Length == 0 ? null : CountOperationalCritical(rows),
             new TelemetrySeries("kW", rows.Select(row => new TelemetryPoint(row.Timestamp, row.PowerOutputKw)).ToArray()),
             new TelemetrySeries("m/s", rows.Select(row => new TelemetryPoint(row.Timestamp, row.WindSpeedMs)).ToArray()));
@@ -92,6 +96,7 @@ public sealed class OperationsQueries(IOperationsRepository repository, AlertRul
             turbine.FarmName,
             rows.Length == 0 ? null : rows.Average(row => row.PowerOutputKw),
             rows.Length == 0 ? null : rows.Average(row => row.WindSpeedMs),
+            rows.Length == 0 ? null : rows.Average(row => row.GearboxTempC),
             rows.Length == 0 ? null : CountOperationalCritical(rows),
             metric,
             page.Select(row => new TelemetryPoint(row.Timestamp, metric.Value(row))).ToArray(),
@@ -156,14 +161,14 @@ public sealed class OperationsQueries(IOperationsRepository repository, AlertRul
 }
 
 public sealed record Dashboard(FleetMetrics FleetMetrics, IReadOnlyList<FarmDashboard> Farms);
-public sealed record FleetMetrics(double AveragePowerKw, double AverageWindMs, int CriticalAlertCount);
-public sealed record FarmDashboard(string FarmId, string FarmName, double AveragePowerKw, double AverageWindMs, int CriticalAlertCount);
+public sealed record FleetMetrics(double AveragePowerKw, double AverageWindMs, double AverageGearboxTempC, int CriticalAlertCount);
+public sealed record FarmDashboard(string FarmId, string FarmName, double AveragePowerKw, double AverageWindMs, double AverageGearboxTempC, int CriticalAlertCount);
 public sealed record FarmDetails(string FarmId, string FarmName, IReadOnlyList<FarmTurbine> Turbines);
 public sealed record FarmTurbine(string TurbineId);
-public sealed record TurbineDetails(string TurbineId, string FarmId, string FarmName, double? AveragePowerKw, double? AverageWindMs, int? CriticalAlertCount, TelemetrySeries PowerOutput, TelemetrySeries WindSpeed);
+public sealed record TurbineDetails(string TurbineId, string FarmId, string FarmName, double? AveragePowerKw, double? AverageWindMs, double? AverageGearboxTempC, int? CriticalAlertCount, TelemetrySeries PowerOutput, TelemetrySeries WindSpeed);
 public sealed record TelemetrySeries(string Unit, IReadOnlyList<TelemetryPoint> Points);
 public sealed record TelemetryPoint(DateTimeOffset Timestamp, double Value);
-public sealed record TurbineTelemetryPage(string TurbineId, string FarmId, string FarmName, double? AveragePowerKw, double? AverageWindMs, int? CriticalAlertCount, TurbineMetric Metric, IReadOnlyList<TelemetryPoint> Points, bool HasMore, int NextStart);
+public sealed record TurbineTelemetryPage(string TurbineId, string FarmId, string FarmName, double? AveragePowerKw, double? AverageWindMs, double? AverageGearboxTempC, int? CriticalAlertCount, TurbineMetric Metric, IReadOnlyList<TelemetryPoint> Points, bool HasMore, int NextStart);
 public enum TurbineMetric
 {
     powerOutput,
