@@ -23,6 +23,11 @@ cd operations-api
 dotnet test Operations.sln
 ```
 
+## energy dashboard
+see `energy-dashboard` repo for details on how to run UI. 
+
+NOTE: Operations-API must be running for the energy dashboard to work properly.
+
 ## Docker
 
 From the repository root:
