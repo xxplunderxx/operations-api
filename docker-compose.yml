@@ -1,0 +1,7 @@
+services:
+  operations-api:
+    build:
+      context: ..
+      dockerfile: operations-api/Dockerfile
+    ports:
+      - "8080:8080"
